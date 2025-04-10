@@ -25,7 +25,7 @@ jobs:
 
     - name: 2. Installing dependencies
       run: |
-        pip install gym
+        pip install gym gdown
         pip install -r requirements.txt
         gdown 'https://drive.google.com/file/d/1gKyN1XifAky1cUa04ncT25KxuoxY_J7P/view?usp=sharing'
 
