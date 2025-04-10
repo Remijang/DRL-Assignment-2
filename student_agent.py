@@ -330,7 +330,6 @@ def expectimax_search(env, approximator, depth, root):
             best_value = expected_value
             best_action = action
         score_list[action] = expected_value
-    print(score_list)
     return best_action, best_value
 
 def expect_chance_nodes(env, approximator, depth):
