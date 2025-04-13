@@ -458,7 +458,7 @@ class TD_MCTS:
         # Rollout: Simulate a random game from the expanded node.
         rollout_reward = self.rollout(sim_env, self.rollout_depth, node.chance)
         rollout_reward += mid_score - init_score
-        rollout_reward /= norm
+        rollout_reward /= norm * 64
         # Backpropagate the obtained reward.
         self.backpropagate(node, rollout_reward)
 
@@ -479,7 +479,7 @@ class TD_MCTS:
         return best_action, distribution
 
 env = Game2048Env()
-td_mcts = TD_MCTS(env, approximator, iterations=50, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
+td_mcts = TD_MCTS(env, approximator, iterations=100, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
 
 def get_action(state, score):
     s = 0
