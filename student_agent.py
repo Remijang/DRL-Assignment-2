@@ -330,7 +330,7 @@ def load_large_vector_from_binary_file(filename):
 approximator = NTupleApproximator(board_size = 4, patterns = patterns)
 approximator.weights = load_large_vector_from_binary_file("approximator")
 
-norm = 285907.7872995873
+norm = 275207.4336295339
 
 env3 = Game2048Env()
 
