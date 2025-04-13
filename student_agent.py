@@ -482,7 +482,6 @@ env = Game2048Env()
 td_mcts = TD_MCTS(env, approximator, iterations=50, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
 
 def get_action(state, score):
-    print(state)
     s = 0
     has = 0
     for i in range(4):
