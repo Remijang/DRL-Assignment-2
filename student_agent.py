@@ -330,7 +330,12 @@ def load_large_vector_from_binary_file(filename):
 approximator = NTupleApproximator(board_size = 4, patterns = patterns)
 approximator.weights = load_large_vector_from_binary_file("approximator")
 
-norm = 275207.4336295339
+norm = 0.0
+for i in range(8):
+  for j in range(16 ** 6):
+    norm += approximator.weights[i][j]
+norm /= (16 ** 6) * 8
+norm *= 64
 
 env3 = Game2048Env()
 
@@ -453,7 +458,7 @@ class TD_MCTS:
         # Rollout: Simulate a random game from the expanded node.
         rollout_reward = self.rollout(sim_env, self.rollout_depth, node.chance)
         rollout_reward += mid_score - init_score
-        rollout_reward /= norm * 64
+        rollout_reward /= norm
         # Backpropagate the obtained reward.
         self.backpropagate(node, rollout_reward)
 
