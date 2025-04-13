@@ -479,18 +479,37 @@ class TD_MCTS:
         return best_action, distribution
 
 env = Game2048Env()
-td_mcts = TD_MCTS(env, approximator, iterations=100, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
+td_mcts = TD_MCTS(env, approximator, iterations=50, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
 
 def get_action(state, score):
+    print(state)
     s = 0
+    has = 0
     for i in range(4):
         for j in range(4):
             if state[i][j]:
                 s |= (int(np.log2(state[i][j])) & 0xf) << ((i * 4 + j) << 2)
-    root = TD_MCTS_Node(s, score, 0)
+                if state[i][j] >= 8192:
+                    has = 1
+    if has:
+        root = TD_MCTS_Node(s, score, 0)
 
-    for _ in range(td_mcts.iterations):
-        td_mcts.run_simulation(root)
+        for _ in range(td_mcts.iterations):
+            td_mcts.run_simulation(root)
 
-    best_act, distrib = td_mcts.best_action_distribution(root)
+        best_act, distrib = td_mcts.best_action_distribution(root)
+    else:
+        env.raw = s
+        legal_moves = [a for a in range(4) if env.is_move_legal(a)]
+        best_act = None
+        best_value = -float('inf')
+        for a in legal_moves:
+            env.raw = s
+            env.score = score
+            new_state, new_score, new_done, _ = env.try_step(a)
+            reward = new_score - score
+            value = reward + approximator.value(new_state)
+            if value > best_value:
+                best_value = value
+                best_act = a
     return best_act
