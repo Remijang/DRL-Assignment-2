@@ -479,16 +479,16 @@ class TD_MCTS:
         return best_action, distribution
 
 env = Game2048Env()
-td_mcts = TD_MCTS(env, approximator, iterations=30, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
+td_mcts = TD_MCTS(env, approximator, iterations=50, exploration_constant=1.41, rollout_depth=10, gamma=0.99)
 
 def get_action(state, score):
     s = 0
-    has = 1
+    has = 0
     for i in range(4):
         for j in range(4):
             if state[i][j]:
                 s |= (int(np.log2(state[i][j])) & 0xf) << ((i * 4 + j) << 2)
-                if state[i][j] >= 8192:
+                if state[i][j] >= 4096:
                     has = 1
     if has:
         root = TD_MCTS_Node(s, score, 0)
