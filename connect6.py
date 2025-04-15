@@ -1,13 +1,103 @@
 import sys
 import numpy as np
 import random
+import copy
+import math
+
+
+class Node:
+    def __init__(self, board, parent=None, action=None, size=19):
+        self.size = size
+        self.board = copy.deepcopy(board)
+        self.action = action
+        self.parent = parent
+        self.children = {}
+        self.visits = 0
+        self.total_reward = 0.0
+        self.expand = 0
+        self.untried_positions = self.get_legal_positions()
+
+    def get_legal_positions(self):
+        empty_positions = [(r, c) for r in range(self.size) for c in range(self.size) if self.board[r, c] == 0]
+        return empty_positions
+
+    def full_expand(self):
+        return len(self.untried_positions) == 0
+
+class MCTS:
+    def __init__(self, size=19, iteration=50, exploration_constant=1.41, rollout_depth=10, gamma=0.99):
+        self.size = size
+        self.iteration = iteration
+        self.c = exploration_constant
+        self.rollout_depth = rollout_depth
+        self.gamma = gamma
+        self.env = Connect6Game(self)
+
+    def create_env_from_state(self, board):
+        new_env = copy.deepcopy(self.env)
+        new_env.board = copy.deepcopy(board)
+        return new_env
+
+    def select_child(self, node):
+        uct_values = []
+        for action, child in node.children.items():
+            uct_values.append(child.total_reward / child.visits + self.c * math.sqrt(math.log(node.visits) / child.visits))
+        best_action = list(node.children.keys())[np.argmax(uct_values)]
+        return node.children[best_action]
+
+    def rollout(self, sim_env, depth, node):
+        r, c, my_turn = node.action
+        for _ in range(depth):
+            new_turn = sim_env.get_turn()
+            empty_positions = [(r, c) for r in range(self.size) for c in range(self.size) if sim_env.board[r, c] == 0]
+            r, c = random.sample(empty_positions, 1)[0]
+            sim_env.board[r, c] = new_turn
+        op_turn = 3 - my_turn
+        op_score = sim_env.turn_evaluate(op_turn, (r, c))
+        my_score = sim_env.turn_evaluate(my_turn, (r, c))
+        return op_score if op_score > my_score else my_score
+
+    def backpropagate(self, node, reward):
+        while node is not None:
+            node.visits += 1
+            node.total_reward += (reward - node.total_reward) / node.visits
+            node = node.parent
+    
+    def run_simulation(self, root, turn):
+        node = root
+        while node.full_expand() and node.children:
+            node = self.select_child(node)
+        sim_env = self.create_env_from_state(node.board)
+        if node.untried_positions:
+            pos = node.untried_positions.pop()
+            r, c = pos
+            turn = sim_env.get_turn()
+            sim_env.board[r, c] = turn
+            child = Node(sim_env.board, node, (r, c, turn))
+            node.children[(r, c, turn)] = child
+            node = child
+        rollout_reward = self.rollout(sim_env, self.rollout_depth, node)
+        self.backpropagate(node, rollout_reward)
+
+    def best_action(self, root):
+        best_visits = -1
+        best_action = []
+        for action, child in root.children.items():
+            if child.visits > best_visits:
+                best_visits = child.visits
+                best_action = [action]
+            elif child.visits == best_visits:
+                best_action.append(action)
+        best_action = random.choice(best_action)
+        return best_action
 
 class Connect6Game:
-    def __init__(self, size=19):
+    def __init__(self, mcts, size=19):
         self.size = size
         self.board = np.zeros((size, size), dtype=int)  # 0: Empty, 1: Black, 2: White
         self.turn = 1  # 1: Black, 2: White
         self.game_over = False
+        self.mcts = mcts
 
     def reset_board(self):
         """Clears the board and resets the game."""
@@ -98,14 +188,58 @@ class Connect6Game:
         self.turn = 3 - self.turn
         print('= ', end='', flush=True)
 
+    def turn_evaluate(self, turn, pos):
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+        lut = {0: 0, 1: 1, 2: 4, 3: 16, 4: 64, 5: 256, 6: 1024}
+        ret = 0.0
+        pos_r, pos_c = pos
+        self.board[pos_r, pos_c] = turn
+        op_turn = 3 - turn
+        for r in range(self.size):
+            for c in range(self.size):
+                for dr, dc in directions:
+                    count = [0, 0, 0]
+                    rr, cc = r, c
+                    total = 0
+                    for _ in range(6):
+                        if 0 <= rr < self.size and 0 <= cc < self.size:
+                            count[self.board[rr, cc]] += 1
+                            total += 1
+                            rr += dr
+                            cc += dc
+                        else:
+                            break
+                    if total == 6 and count[op_turn] == 0:
+                        ret += lut[count[turn]]
+        return ret
+
+    def get_turn(self):
+        b_cnt, w_cnt = 0, 0
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.board[r, c] == 1:
+                    b_cnt += 1
+                elif self.board[r, c] == 2:
+                    w_cnt += 1
+        if w_cnt % 2 == 0 and w_cnt >= b_cnt:
+            turn = 1
+        else:
+            turn = 2
+        return turn
+
     def generate_move(self, color):
         """Generates a random move for the computer."""
         if self.game_over:
             print("? Game over")
             return
 
-        empty_positions = [(r, c) for r in range(self.size) for c in range(self.size) if self.board[r, c] == 0]
-        selected = random.sample(empty_positions, 1)
+        turn = 1 if color == 'B' else 2
+        root = Node(self.board)
+        for _ in range(mcts.iteration):
+            mcts.run_simulation(root, turn)
+
+        best_action = mcts.best_action(root)[:2]
+        selected = [best_action]
         move_str = ",".join(f"{self.index_to_label(c)}{r+1}" for r, c in selected)
         
         self.play_move(color, move_str)
@@ -113,6 +247,7 @@ class Connect6Game:
         print(f"{move_str}\n\n", end='', flush=True)
         print(move_str, file=sys.stderr)
         return
+
     def show_board(self):
         """Displays the board as text."""
         print("= ")
@@ -182,5 +317,6 @@ class Connect6Game:
                 print(f"? Error: {str(e)}")
 
 if __name__ == "__main__":
-    game = Connect6Game()
+    mcts = MCTS(size=19, iteration=10000, exploration_constant=1.41, rollout_depth=0, gamma=1)
+    game = Connect6Game(mcts=mcts)
     game.run()
