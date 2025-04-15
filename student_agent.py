@@ -483,7 +483,7 @@ td_mcts = TD_MCTS(env, approximator, iterations=50, exploration_constant=1.41, r
 
 def get_action(state, score):
     s = 0
-    has = 0
+    has = 1
     for i in range(4):
         for j in range(4):
             if state[i][j]:
